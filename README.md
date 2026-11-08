@@ -13,7 +13,7 @@ python -m material_selector rank --goal beam_stiffness --top 5
 ```
 
 - The `material-selector` console script is also installed. Use it in place of `python -m material_selector` if your Python `Scripts` folder is on `PATH`.
-- Use the editable install (`-e`) shown above. A normal (non-editable) install does not bundle the CSV. In that case point the tool at the data with `--data path/to/materials.csv` or the `MATERIAL_SELECTOR_DATA` environment variable.
+- Use the editable install (`-e`) shown above. A normal (non-editable) install does not bundle the CSV. In that case point the tool at the data with `--data path/to/materials.csv` (a global option that goes before the subcommand, e.g. `python -m material_selector --data path/to/materials.csv rank --goal beam_stiffness`) or the `MATERIAL_SELECTOR_DATA` environment variable.
 - List all goals with `python -m material_selector goals`.
 
 ## Example output
@@ -96,7 +96,7 @@ rank  material                                class  index  rho kg/m3  E GPa  si
 2     Aluminium 7075-T6                       metal  32.03  2810       72     450        yield    5
 3     Structural steel ASTM A36 (hot rolled)  metal  31.97  7820       200    250        yield    1
 4     Alloy steel 4340 (annealed)             metal  29.94  7850       200    470        yield    2
-5     Grey cast iron (ASTM A48, 4.5% C)       metal  27.78  7200       130    200        tensile  1
+5     Grey cast iron (generic)       metal  27.78  7200       130    200        tensile  1
 
 7 ranked, 24 excluded by limits, 0 skipped (missing data).
 Note: strength values mix bases (tensile, yield); yield, tensile and flexural strengths are not directly comparable.
@@ -129,7 +129,7 @@ This is a screening aid for study and concept work. It is not a design check and
 python -m pytest -q
 ```
 
-Expected result with the current code: `105 passed`.
+Expected result with the current code: `106 passed`.
 
 ## Licence
 

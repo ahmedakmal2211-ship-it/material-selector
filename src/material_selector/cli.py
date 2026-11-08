@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import sys
 from typing import List, Optional, Sequence
 
@@ -125,7 +126,8 @@ def cmd_chart(a: argparse.Namespace) -> int:
     from .plot import ashby_chart  # import matplotlib only when needed
 
     ds = _load(a)
-    out = ashby_chart(ds.materials, a.out, kind=a.kind, goal=a.goal, top=a.top,
+    out_path = a.out if os.path.splitext(a.out)[1] else a.out + ".png"
+    out = ashby_chart(ds.materials, out_path, kind=a.kind, goal=a.goal, top=a.top,
                       limits=_limits(a))
     print(f"wrote {out}")
     print(DISCLAIMER)

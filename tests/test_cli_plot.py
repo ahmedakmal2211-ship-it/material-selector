@@ -61,3 +61,13 @@ def test_chart_cli(sample_csv, tmp_path, capsys):
     assert main(["--data", str(sample_csv), "chart", "--out", str(out), "--kind", "modulus",
                  "--goal", "beam_stiffness"]) == 0
     assert out.exists()
+
+
+def test_chart_out_without_extension_gets_png(tmp_path, capsys):
+    from material_selector.cli import main
+
+    target = tmp_path / "noext"
+    code = main(["chart", "--kind", "modulus", "--out", str(target)])
+    assert code == 0
+    assert (tmp_path / "noext.png").exists()
+    assert "noext.png" in capsys.readouterr().out
