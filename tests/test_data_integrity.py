@@ -53,9 +53,27 @@ def test_numbers_positive(rows):
 
 
 def test_density_plausible(rows):
+    # Same range as the loader's PLAUSIBLE check (balsa is ~150 kg/m^3).
     bad = [(r["name"], r["density_kg_m3"]) for r in rows
-           if not 500 <= float(r["density_kg_m3"]) <= 25000]
+           if not 100 <= float(r["density_kg_m3"]) <= 25000]
     assert not bad
+
+
+def test_optional_columns_valid_if_present(rows):
+    if "cost_confidence" not in rows[0]:
+        pytest.skip("optional columns not in data/materials.csv yet")
+    bad = []
+    for r in rows:
+        if (r.get("cost_confidence") or "estimated").strip().lower() not in ("sourced", "estimated"):
+            bad.append((r["name"], "cost_confidence", r["cost_confidence"]))
+        if (r.get("anisotropic") or "no").strip().lower() not in ("yes", "no"):
+            bad.append((r["name"], "anisotropic", r["anisotropic"]))
+        url = (r.get("cost_source_url") or "").strip()
+        if url and not url.startswith("http"):
+            bad.append((r["name"], "cost_source_url", url))
+        if (r.get("cost_confidence") or "").strip().lower() == "sourced" and not url:
+            bad.append((r["name"], "sourced cost without cost_source_url", ""))
+    assert not bad, bad
 
 
 def test_modulus_plausible(rows):

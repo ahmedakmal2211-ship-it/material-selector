@@ -18,7 +18,11 @@ Validation at load:
 * numbers may use thousands separators ("7,800"); any other non-numeric text,
   NaN or inf rejects the row with a reason (never silently missing);
 * rows with a class outside ``ALLOWED_CLASSES`` or a value outside the
-  plausibility ranges in ``PLAUSIBLE`` are rejected with a reason.
+  plausibility ranges in ``PLAUSIBLE`` are rejected with a reason;
+* optional columns (absent or blank -> default): ``cost_confidence``
+  ('sourced' | 'estimated', default 'estimated'), ``cost_source_url`` (blank
+  or http(s) URL), ``anisotropic`` ('yes' | 'no', default 'no'). Other values
+  reject the row with a reason.
 """
 
 from __future__ import annotations
@@ -46,6 +50,10 @@ REQUIRED_COLUMNS = (
     "notes",
 )
 NUMERIC_COLUMNS = ("density_kg_m3", "modulus_GPa", "strength_MPa", "cost_usd_per_kg")
+# Optional columns: absent column or blank cell -> default.
+OPTIONAL_COLUMNS = {"cost_confidence": "estimated", "cost_source_url": "", "anisotropic": "no"}
+COST_CONFIDENCE = ("sourced", "estimated")
+STRENGTH_BASES = ("yield", "tensile", "flexural")
 
 # column -> (low, high), inclusive. Values outside reject the row.
 PLAUSIBLE = {
@@ -69,6 +77,9 @@ class Material:
     source_name: str = ""
     source_url: str = ""
     notes: str = ""
+    cost_confidence: str = "estimated"  # "sourced" | "estimated"
+    cost_source_url: str = ""
+    anisotropic: bool = False
 
     @property
     def density_mg_m3(self) -> Optional[float]:
@@ -149,6 +160,16 @@ def material_from_row(row: dict) -> Material:
     c = nums["cost_usd_per_kg"]
     if c is not None and c <= 0:
         raise ValueError(f"cost_usd_per_kg={c:g} must be positive")
+    opt = {k: ((row.get(k) or "").strip() or d) for k, d in OPTIONAL_COLUMNS.items()}
+    conf = opt["cost_confidence"].lower()
+    if conf not in COST_CONFIDENCE:
+        raise ValueError(f"cost_confidence {opt['cost_confidence']!r} not in {list(COST_CONFIDENCE)}")
+    curl = opt["cost_source_url"]
+    if curl and not curl.lower().startswith(("http://", "https://")):
+        raise ValueError(f"cost_source_url {curl!r} must start with http:// or https://")
+    aniso = opt["anisotropic"].lower()
+    if aniso not in ("yes", "no"):
+        raise ValueError(f"anisotropic {opt['anisotropic']!r} must be 'yes' or 'no'")
     return Material(
         name=(row.get("name") or "").strip(),
         cls=cls,
@@ -160,6 +181,9 @@ def material_from_row(row: dict) -> Material:
         source_name=(row.get("source_name") or "").strip(),
         source_url=(row.get("source_url") or "").strip(),
         notes=(row.get("notes") or "").strip(),
+        cost_confidence=conf,
+        cost_source_url=curl,
+        anisotropic=aniso == "yes",
     )
 
 

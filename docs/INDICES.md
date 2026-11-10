@@ -102,12 +102,34 @@ Indices rank; limits remove. A material is **excluded** before ranking if any en
 | `max_density_kg_m3` | maximum density |
 | `max_cost_usd_per_kg` | maximum stock cost |
 | `classes` | allowed families (metal, polymer, composite, ceramic, wood) |
+| `strength_bases` | keep only rows whose strength is on these bases (yield, tensile, flexural) |
+| `isotropic_only` | drop rows flagged `anisotropic = yes` |
+| `sourced_cost_only` | for cost goals only, drop rows whose `cost_confidence` is `estimated` |
 
-Limits are inclusive (`>=` for minimums, `<=` for maximums). Missing values never pass a limit that uses them.
+Limits are inclusive (`>=` for minimums, `<=` for maximums). Missing values never pass a limit that uses them. `max_cost_usd_per_kg` uses the nominal cost, not the uncertainty range below.
+
+## Uncertainty
+
+Every value in the dataset is one number standing in for a range, so a ranking is only as sharp as its inputs. The tool shows two simple signals; neither is a statistical confidence interval.
+
+**Ties (`~`).** After sorting, a material is marked `~` when its index is less than `tie_tol` % (default 5 %) below the material ranked directly above it: (M_above − M) / M_above × 100 < tie_tol. A run such as `3, ~4, ~5` is one tie group; treat its order as arbitrary. Differences of a few per cent are well inside normal grade-to-grade scatter.
+
+**Rank bands (cost goals only: `tie_strength_cost`, `beam_stiffness_cost`).** Stock prices are the least certain input. Each cost is treated as uncertain by a multiplicative factor F (×F or ÷F): F = 2.0 for `cost_confidence = estimated` and F = 1.5 for `sourced` (both adjustable). Treat 1.5 as a floor, not a typical value: even a sourced commodity price spreads by up to about 2.5x between regions, suppliers, forms and order sizes, and a sourced price is a raw-material figure rather than a quote for stock. A cost index is proportional to 1/C_m, so material i's index can lie anywhere in [M_i / F_i, M_i × F_i]. Then
+
+- best rank_i = 1 + number of other materials j with M_j / F_j > M_i × F_i (i at its cheapest, every other material at its dearest);
+- worst rank_i = 1 + number of other materials j with M_j × F_j ≥ M_i / F_i (i at its dearest, every other material at its cheapest).
+
+The band is printed as `best-worst`. It is deliberately pessimistic: it assumes all other costs move against i at once, which real prices rarely do. A wide band means the cost ranking for that material should not be trusted without a quote. The factors are judgement, not measured scatter; density and mechanical properties are treated as exact in this calculation.
+
+**Pareto front.** For two goals at once the tool lists the non-dominated materials: no other material is at least as good on both indices and strictly better on one. Everything off the front is beaten on both counts by some material on it. Cost goals in pareto use nominal costs; no rank band applied.
+
+`--sourced-cost-only` only acts on cost goals; with any other goal the tool says so on stderr and ignores it.
 
 ## Limits of this tool
 
 - One value per property; real properties have wide ranges (alloy, temper, grade, fibre fraction, direction).
-- Composites and wood are anisotropic; the dataset uses an along-fibre or quasi-isotropic figure as stated per row.
+- Composites and wood are anisotropic; the dataset uses an along-fibre or quasi-isotropic figure as stated per row. Such rows carry `anisotropic = yes`, are drawn hollow on the charts and can be dropped with `--isotropic-only`. Across the fibre or grain they are many times less stiff and strong.
+- Strength bases differ: yield (ductile metals and many polymers), tensile (composites, cast iron) and flexural (ceramics, glass, wood). They are not directly comparable; the tool notes when a ranking mixes them, and `--strength-basis` restricts it.
 - Ceramics are brittle: flexural strength is not a safe design stress without a statistical (Weibull) approach.
-- Cost data are indicative, dated, and volatile.
+- Cost data are indicative, dated, and volatile. Each row says whether its cost is `sourced` (with a `cost_source_url`) or `estimated`; see Uncertainty above.
+- Class envelopes on the charts are padded hulls around this dataset's points, not the full property fields of each class.

@@ -19,10 +19,17 @@ class Limits:
     max_density_kg_m3: Optional[float] = None
     max_cost_usd_per_kg: Optional[float] = None
     classes: Optional[Sequence[str]] = None
+    strength_bases: Optional[Sequence[str]] = None  # keep only these strength_basis values
+    isotropic_only: bool = False  # drop rows flagged anisotropic
+    sourced_cost_only: bool = False  # drop estimated-cost rows (only when the goal uses cost)
 
 
-def failures(m: Material, limits: Optional[Limits]) -> List[str]:
-    """Return the reasons ``m`` fails ``limits`` (empty list = passes)."""
+def failures(m: Material, limits: Optional[Limits], uses_cost: bool = False) -> List[str]:
+    """Return the reasons ``m`` fails ``limits`` (empty list = passes).
+
+    ``uses_cost`` says whether the goal being ranked uses cost; the
+    ``sourced_cost_only`` filter applies only then.
+    """
     if limits is None:
         return []
     out = []
@@ -51,16 +58,24 @@ def failures(m: Material, limits: Optional[Limits]) -> List[str]:
         allowed = {c.strip().lower() for c in limits.classes}
         if (m.cls or "").lower() not in allowed:
             out.append(f"class '{m.cls or 'missing'}' not in {sorted(allowed)}")
+    if limits.strength_bases:
+        bases = {b.strip().lower() for b in limits.strength_bases}
+        if (m.strength_basis or "").lower() not in bases:
+            out.append(f"strength basis '{m.strength_basis or 'missing'}' not in {sorted(bases)}")
+    if limits.isotropic_only and m.anisotropic:
+        out.append("anisotropic (--isotropic-only)")
+    if limits.sourced_cost_only and uses_cost and m.cost_confidence != "sourced":
+        out.append(f"cost is {m.cost_confidence}, not sourced (--sourced-cost-only)")
     return out
 
 
 def screen(
-    materials: Iterable[Material], limits: Optional[Limits]
+    materials: Iterable[Material], limits: Optional[Limits], uses_cost: bool = False
 ) -> Tuple[List[Material], List[Tuple[Material, str]]]:
     """Split materials into (passed, [(excluded, reason), ...])."""
     passed, excluded = [], []
     for m in materials:
-        f = failures(m, limits)
+        f = failures(m, limits, uses_cost)
         if f:
             excluded.append((m, "; ".join(f)))
         else:
